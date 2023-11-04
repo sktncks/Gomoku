@@ -1,6 +1,7 @@
 import pygame, sys
 from pygame.locals import *
 from rule import *
+from AI import get_ai_move
 
 bg_color = (128, 128, 128)
 black = (0, 0, 0)
@@ -17,11 +18,15 @@ grid_size = 30
 fps = 60
 fps_clock = pygame.time.Clock()
 
+pygame.font.init()
+font_size = 36
+font = pygame.font.Font(None, font_size)
+
 def main():
     pygame.init()
     surface = pygame.display.set_mode((window_width, window_height))
     pygame.display.set_caption("Omok game")
-    surface.fill(bg_color)
+    player_stone, ai_stone = choose_color_menu(surface)
 
     omok = Omok(surface)
     menu = Menu(surface)
@@ -35,7 +40,7 @@ def run_game(surface, omok, menu):
         for event in pygame.event.get():
             if event.type == QUIT:
                 menu.terminate()
-            elif event.type == MOUSEBUTTONUP:
+            elif event.type == MOUSEBUTTONUP and omok.turn == player_stone:
                 if not omok.check_board(event.pos):
                     if menu.check_rect(event.pos, omok):
                         omok.init_game()
@@ -43,9 +48,41 @@ def run_game(surface, omok, menu):
         if omok.is_gameover:
             return
 
+        if omok.turn == ai_stone:
+            omok.play_ai_turn()
+
         pygame.display.update()
         fps_clock.tick(fps)
 
+def choose_color_menu(surface):
+    black_button_rect = pygame.Rect(150, 200, 100, 50)
+    white_button_rect = pygame.Rect(350, 200, 100, 50)
+    
+    black_button_text = font.render('Black', True, (255, 255, 255))
+    white_button_text = font.render('White', True, (0, 0, 0))
+    while True:
+        surface.fill((128, 128, 128))  # 배경을 회색으로 칠합니다.
+
+        # 검은색과 흰색 버튼을 그립니다.
+        pygame.draw.rect(surface, (0, 0, 0), black_button_rect)
+        pygame.draw.rect(surface, (255, 255, 255), white_button_rect)
+        
+        # 버튼 위에 텍스트를 그립니다.
+        surface.blit(black_button_text, black_button_rect)
+        surface.blit(white_button_text, white_button_rect)
+        
+        pygame.display.update()
+        
+        for event in pygame.event.get():
+            if event.type == QUIT:
+                pygame.quit()
+                sys.exit()
+            elif event.type == MOUSEBUTTONUP:
+                if black_button_rect.collidepoint(event.pos):
+                    return black_stone, white_stone
+                elif white_button_rect.collidepoint(event.pos):
+                    return white_stone, black_stone
+                
 class Omok(object):
     def __init__(self, surface):
         self.board = [[0 for i in range(board_size)] for j in range(board_size)]
@@ -220,6 +257,13 @@ class Omok(object):
             pygame.display.update()
             pygame.time.delay(200)
         self.menu.show_msg(stone)
+
+    def play_ai_turn(self):
+        x, y = get_ai_move(self.board, self.turn)
+        if x is not None and y is not None:
+            self.draw_stone((x * grid_size + 25, y * grid_size + 25), self.turn, 1)
+            if self.check_gameover((x * grid_size + 25, y * grid_size + 25), self.turn):
+                self.is_gameover = True
 
         
 class Menu(object):
